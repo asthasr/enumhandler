@@ -26,11 +26,11 @@ def test_non_exhaustive_definitions_fail():
     with pytest.raises(InvalidEnumHandler):
 
         class _(EnumHandler, enum=Colors):
-            @handles(Colors.RED)
+            @EnumHandler.register(Colors.RED)
             def red(self):
                 return "red"
 
-            @handles(Colors.GREEN)
+            @EnumHandler.register(Colors.GREEN)
             def blue(self):
                 return "blue"
 
@@ -39,11 +39,11 @@ def test_incorrect_enum_members_fail():
     with pytest.raises(InvalidEnumHandler):
 
         class _(EnumHandler, enum=Colors):
-            @handles(Colors.RED, Colors.GREEN, Colors.BLUE)
+            @EnumHandler.register(Colors.RED, Colors.GREEN, Colors.BLUE)
             def color(self):
                 return "color"
 
-            @handles(Capitals.TOKYO)
+            @EnumHandler.register(Capitals.TOKYO)
             def city(self):
                 return "city"
 
@@ -52,11 +52,11 @@ def test_duplicate_definitions_fail():
     with pytest.raises(InvalidEnumHandler):
 
         class _(EnumHandler, enum=Colors):
-            @handles(Colors.RED, Colors.GREEN, Colors.BLUE)
+            @EnumHandler.register(Colors.RED, Colors.GREEN, Colors.BLUE)
             def color(self):
                 return "color"
 
-            @handles(Colors.RED)
+            @EnumHandler.register(Colors.RED)
             def city(self):
                 return "duplicate"
 
@@ -73,23 +73,44 @@ EXPECTED_CONTINENTS = {
 }
 
 
-def test_correct_definitions_work():
+@pytest.fixture
+def valid_handler():
     class Continents(EnumHandler, enum=Capitals):
-        @handles(Capitals.AMSTERDAM, Capitals.LONDON, Capitals.MOSCOW, Capitals.PARIS)
+        @EnumHandler.register(
+            Capitals.AMSTERDAM, Capitals.LONDON, Capitals.MOSCOW, Capitals.PARIS
+        )
         def europe(self):
             return "Europe"
 
-        @handles(Capitals.WASHINGTON_DC)
+        @EnumHandler.register(Capitals.WASHINGTON_DC)
         def north_america(self):
             return "North America"
 
-        @handles(Capitals.HANOI, Capitals.TOKYO)
+        @EnumHandler.register(Capitals.HANOI, Capitals.TOKYO)
         def asia(self):
             return "Asia"
 
-        @handles(Capitals.CANBERRA)
+        @EnumHandler.register(Capitals.CANBERRA)
         def australia(self):
             return "Australia"
 
+    return Continents
+
+
+def test_correct_definitions_work(valid_handler):
     for entry in Capitals:
-        assert Continents(entry)() == EXPECTED_CONTINENTS[entry]
+        assert valid_handler(entry)() == EXPECTED_CONTINENTS[entry]
+
+
+def test_registering_another_handler_fails(valid_handler):
+    with pytest.raises(RuntimeError):
+        valid_handler.register(Capitals.AMSTERDAM)
+
+
+def test_using_reexported_handles_works():
+    class ColorHandler(EnumHandler, enum=Colors):
+        @handles(Colors.RED, Colors.GREEN, Colors.BLUE)
+        def is_color(self):
+            return True
+
+    assert ColorHandler(Colors.BLUE)()

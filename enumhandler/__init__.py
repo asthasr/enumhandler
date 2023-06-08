@@ -1,17 +1,18 @@
 from enum import Enum
 from inspect import getmembers
-from typing import Callable, Generic, Type, TypeVar
+from typing import Callable, Generic, Self, Type, TypeVar, TypeVarTuple
 
 
 E = TypeVar("E", bound=Type[Enum])
+M = TypeVar("M", bound=Enum)
 O = TypeVar("O")
 
 
-class EnumHandler(Generic[E, O]):
+class EnumHandler(Generic[E, M, O]):
     """
     A callable handler for the members of an enum. Implementations should subclass this
-    class, and then use the ``@handles`` decorator to register one handler per member of
-    the enum.
+    class, and then use the ``EnumHandler.register`` decorator (also exported as
+    ``handles``) to register one handler per member of the enum.
 
     For example, consider an enumeration of mathematical operations::
 
@@ -23,15 +24,15 @@ class EnumHandler(Generic[E, O]):
     Along with an implementation of a handler for them::
 
         class OperationHandler(EnumHandler, enum=Operations):
-            @handles(Operations.ADD)
+            EnumHandler.register(Operations.ADD)
             def add(self, *args):
                 return sum(args)
 
-            @handles(Operations.MUL)
+            EnumHandler.register(Operations.MUL)
             def multiply(self, *args):
                 return reduce(lambda acc, n: acc * n)
 
-            @handles(Operations.AVG)
+            EnumHandler.register(Operations.AVG)
             def average(self, *args):
                 return sum(args) / len(args)
 
@@ -42,6 +43,7 @@ class EnumHandler(Generic[E, O]):
         adder(3, 4, 5)
     """
 
+    __final: bool = False
     __handlers: dict[E, Callable[..., O]]
     __handler: Callable[..., O]
 
@@ -65,6 +67,7 @@ class EnumHandler(Generic[E, O]):
         registered handlers, and raises errors for duplicates, non-exhaustive handlers,
         or members of unexpected enum classes.
         """
+        cls.__final = True
         cls.__handlers = {}
 
         for method in (attr for _, attr in getmembers(cls) if callable(attr)):
@@ -92,18 +95,25 @@ class EnumHandler(Generic[E, O]):
                 f"Missing entries: {', '.join(str(m) for m in missing)}"
             )
 
+    @classmethod
+    def register(cls, *enum_values: M):
+        """
+        Registers a method as the handler for a given enum member or members.
+        """
+        if cls.__final:
+            raise RuntimeError(
+                "You can't register an enum handler on a finalized class."
+            )
+
+        def _deco(fn: Callable[..., O]) -> Callable[..., O]:
+            fn._handles = enum_values
+            return fn
+
+        return _deco
+
 
 class InvalidEnumHandler(ValueError):
     pass
 
 
-def handles(*enum_values: Enum):
-    """
-    Registers a method as the handler for a given enum member or members.
-    """
-
-    def _deco(fn: Callable[..., O]) -> Callable[..., O]:
-        fn._handles = enum_values
-        return fn
-
-    return _deco
+handles = EnumHandler.register
