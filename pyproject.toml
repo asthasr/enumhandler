@@ -1,7 +1,10 @@
 [tool.poetry]
 name = "enumhandler"
 version = "0.1.0"
-description = ""
+description = """\
+A class that allows the definition of handlers for an enum class, along with\
+definition-time type and exhaustivity checks.\
+"""
 authors = ["asthasr <466533+asthasr@users.noreply.github.com>"]
 readme = "README.md"
 
