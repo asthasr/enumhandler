@@ -57,6 +57,9 @@ An `InvalidEnumHandler` exception is raised in three cases:
 - Not all enum values are handled.
 - One enum value has multiple registered handlers.
 - A handler is registered for the incorrect enum.
+
+A `RuntimeError` exception is raised in one case:
+
 - A handler is registered on an existing class.
 
 Please note that subclassing is currently not supported.
