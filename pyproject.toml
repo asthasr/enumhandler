@@ -16,6 +16,11 @@ python = ">=3.8"
 pyright = "^1.1.312"
 black = "^23.3.0"
 pytest = "^7.3.1"
+ruff = "^0.0.272"
+
+[tool.ruff]
+line-length = 88
+select = ["F", "E", "W", "I001"]
 
 [build-system]
 requires = ["poetry-core"]

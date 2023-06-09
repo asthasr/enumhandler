@@ -1,25 +1,8 @@
-from enum import Enum, auto
-
 import pytest
 
 from enumhandler import EnumHandler, InvalidEnumHandler, handles
 
-
-class Colors(Enum):
-    RED = auto()
-    GREEN = auto()
-    BLUE = auto()
-
-
-class Capitals(Enum):
-    AMSTERDAM = auto()
-    CANBERRA = auto()
-    HANOI = auto()
-    LONDON = auto()
-    MOSCOW = auto()
-    PARIS = auto()
-    TOKYO = auto()
-    WASHINGTON_DC = auto()
+from .enums import CapitalContinents, Capitals, Colors
 
 
 def test_non_exhaustive_definitions_fail():
@@ -73,38 +56,14 @@ EXPECTED_CONTINENTS = {
 }
 
 
-@pytest.fixture
-def valid_handler():
-    class Continents(EnumHandler, enum=Capitals):
-        @EnumHandler.register(
-            Capitals.AMSTERDAM, Capitals.LONDON, Capitals.MOSCOW, Capitals.PARIS
-        )
-        def europe(self):
-            return "Europe"
-
-        @EnumHandler.register(Capitals.WASHINGTON_DC)
-        def north_america(self):
-            return "North America"
-
-        @EnumHandler.register(Capitals.HANOI, Capitals.TOKYO)
-        def asia(self):
-            return "Asia"
-
-        @EnumHandler.register(Capitals.CANBERRA)
-        def australia(self):
-            return "Australia"
-
-    return Continents
-
-
-def test_correct_definitions_work(valid_handler):
+def test_correct_definitions_work():
     for entry in Capitals:
-        assert valid_handler(entry)() == EXPECTED_CONTINENTS[entry]
+        assert CapitalContinents(entry)() == EXPECTED_CONTINENTS[entry]
 
 
-def test_registering_another_handler_fails(valid_handler):
+def test_registering_another_handler_fails():
     with pytest.raises(RuntimeError):
-        valid_handler.register(Capitals.AMSTERDAM)
+        CapitalContinents.register(Capitals.AMSTERDAM)
 
 
 def test_using_reexported_handles_works():
