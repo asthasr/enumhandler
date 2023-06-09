@@ -8,12 +8,23 @@ O = TypeVar("O")  # noqa: E741
 
 
 class CacheStrategy(Enum):
+    """
+    Represents the caching strategy used by the ``EnumHandler``.
+
+    NO_CACHE
+        Each instantiation of the class returns a new instance.
+
+    EAGER_CACHE
+        All possible instances are created and cached upon class definition by iterating
+        over the enum ``E``.
+
+    LAZY_CACHE
+        Instances are cached on-demand when they are created.
+    """
+
     NO_CACHE = auto()
     EAGER_CACHE = auto()
     LAZY_CACHE = auto()
-
-    def use_cache(self):
-        return self is not CacheStrategy.NO_CACHE
 
 
 class EnumHandler(Generic[E, M, O]):
@@ -59,16 +70,18 @@ class EnumHandler(Generic[E, M, O]):
     _instance_cache: dict[E, Self]
 
     def __new__(cls, enum_element):
-        if cls._cache_strategy.use_cache():
-            try:
-                return cls._instance_cache[enum_element]
-            except KeyError:
-                instance = super().__new__(cls)
-                instance.__init__(enum_element)
-                cls._instance_cache[enum_element] = instance
-                return instance
+        if cls._cache_strategy is CacheStrategy.NO_CACHE:
+            return super().__new__(cls)
 
-        return super().__new__(cls)
+        try:
+            # Return the cached instance, if possible.
+            return cls._instance_cache[enum_element]
+        except KeyError:
+            # Instantiate, cache and return a new instance.
+            instance = super().__new__(cls)
+            instance.__init__(enum_element)
+            cls._instance_cache[enum_element] = instance
+            return instance
 
     def __init__(self, enum_element):
         self._handler = self._handlers[enum_element]
@@ -80,6 +93,8 @@ class EnumHandler(Generic[E, M, O]):
         try:
             return self._handler(self, *args, **kwargs)
         except AttributeError as ex:
+            # self._handler is set within __init_subclass__, so this indicates that the
+            # parent class is being called.
             raise NotImplementedError(
                 "EnumHandler must be subclassed and instantiated."
             ) from ex
@@ -98,6 +113,9 @@ class EnumHandler(Generic[E, M, O]):
         cls._instance_cache = {}
 
         for method in (attr for _, attr in getmembers(cls) if callable(attr)):
+            # The _handles attribute is set on callables by the @handles decorator. If
+            # it's not present, it implies this is a "normal" method rather than a
+            # registered handler.
             try:
                 for enum_value in method._handles:
                     if enum_value in cls._handlers:
